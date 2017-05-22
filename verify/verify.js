@@ -11,7 +11,7 @@ var endpoint = process.env.ENDPOINT;
 
 console.log(endpoint);
 
-var productId, productURI, userName, orderURI, orderId;
+var productId, productURI, userId, userURI, userName, orderURI, orderId;
 
 describe("Test", function () {
   this.timeout(60000);
@@ -197,13 +197,65 @@ describe("Test", function () {
         assert.lengthOf(result.missing, 0, "Missing/unresolved JSON schema $refs (" + result.missing && result.missing.join(', ') + ") in schema: " + JSON.stringify(schema, null, 4) + " Error");
         assert.ok(result.valid, "Got unexpected response body: " + (result.error && result.error.message) + " " + JSON.stringify(schema, null, 4) + " Error");
       }
+        userUrl = response.headers['location'];
+        var splits = productURI.split("/");
+        userId = splits[splits.length - 1];
       done();
     });
   });
-  //
+
+    it("GET /users/{userId} -> 200", function(done) {
+        var options = {
+            url: endpoint + '/users/' + userId,
+            method: 'GET',
+            qs: {},
+            body: "",
+            header: {}
+        };
+
+        request(options, function(error, response, body) {
+            assert.isNull(error);
+            assert.isNotNull(response, 'Response');
+            assert.equal(response.statusCode, 200, "Expect 200, got " + response.statusCode);
+            var schema = {
+                "$schema": "http://json-schema.org/draft-04/schema#",
+                "type": "object",
+                "properties": {
+                    "uri": {
+                        "type": "string"
+                    },
+                    "id": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "required": [
+                        "id",
+                        "uri",
+                        "name",
+                    ]
+                }
+            };
+            if (schema != '') {
+                // verify response body
+                body = (body == '' ? '[empty]' : body);
+                assert.doesNotThrow(function() {
+                    JSON.parse(body);
+                }, JSON.SyntaxError, "Invalid JSON: " + body);
+                var json = JSON.parse(body);
+                var result = tv4.validateResult(json, schema);
+                assert.lengthOf(result.missing, 0, "Missing/unresolved JSON schema $refs (" + result.missing && result.missing.join(', ') + ") in schema: " + JSON.stringify(schema, null, 4) + " Error");
+                assert.ok(result.valid, "Got unexpected response body: " + (result.error && result.error.message) + " " + JSON.stringify(schema, null, 4) + " Error");
+            }
+            done();
+        });
+    });
+
+
   it("POST /users/{id}/orders -> 201", function(done) {
     var options = {
-      url: endpoint + '/users/' + userName + '/orders',
+      url: endpoint + '/users/' + userId + '/orders',
       method: 'POST',
       qs: {},
       json: {
@@ -236,17 +288,16 @@ describe("Test", function () {
       }
       orderURI = response.headers['location'];
       orderId = orderURI.split("/")[orderURI.split("/").length - 1];
-      console.log(orderURI);
       done();
     });
   });
   //
   it("GET /users/{id}/orders -> 200", function(done) {
     var options = {
-      url: endpoint + '/users/' + userName + '/orders',
+      url: endpoint + '/users/' + userId + '/orders',
       method: 'GET',
       qs: {},
-      json: "",
+      body: "",
       header: {}
     };
 
